@@ -1,0 +1,45 @@
+{
+  "name": "gbrain",
+  "version": "0.1.0",
+  "description": "Personal knowledge brain with hybrid RAG search",
+  "skills": [
+    {
+      "name": "ingest",
+      "path": "ingest/SKILL.md",
+      "description": "Ingest meetings, docs, articles into the brain"
+    },
+    {
+      "name": "query",
+      "path": "query/SKILL.md",
+      "description": "Answer questions using 3-layer search and synthesis"
+    },
+    {
+      "name": "maintain",
+      "path": "maintain/SKILL.md",
+      "description": "Brain health checks: contradictions, stale info, orphans"
+    },
+    {
+      "name": "enrich",
+      "path": "enrich/SKILL.md",
+      "description": "Enrich pages from external APIs (Crustdata, Happenstance, Exa)"
+    },
+    {
+      "name": "briefing",
+      "path": "briefing/SKILL.md",
+      "description": "Compile daily briefing with meeting context and active deals"
+    },
+    {
+      "name": "migrate",
+      "path": "migrate/SKILL.md",
+      "description": "Universal migration from Obsidian, Notion, Logseq, markdown, CSV, JSON, Roam"
+    }
+  ],
+  "dependencies": {
+    "runtime": "bun",
+    "package": "gbrain"
+  },
+  "setup": {
+    "command": "gbrain init --supabase",
+    "description": "Initialize brain with Supabase (guided wizard)"
+  }
+}
