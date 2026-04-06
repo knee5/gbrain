@@ -84,6 +84,11 @@ async function main() {
         await runExport(engine, args.slice(1));
         break;
       }
+      case 'files': {
+        const { runFiles } = await import('./commands/files.ts');
+        await runFiles(engine, args.slice(1));
+        break;
+      }
       case 'embed': {
         const { runEmbed } = await import('./commands/embed.ts');
         await runEmbed(engine, args.slice(1));
@@ -220,6 +225,12 @@ IMPORT/EXPORT
   import <dir> [--no-embed]          Import markdown directory
   sync [--repo <path>] [flags]       Git-to-brain incremental sync
   export [--dir ./out/]              Export to markdown
+
+FILES
+  files list [slug]                  List stored files
+  files upload <file> --page <slug>  Upload file to storage
+  files sync <dir>                   Bulk upload directory
+  files verify                       Verify all uploads
 
 EMBEDDINGS
   embed [<slug>|--all|--stale]       Generate/refresh embeddings
