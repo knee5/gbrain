@@ -1,0 +1,57 @@
+{
+  "id": "gbrain",
+  "name": "GBrain",
+  "version": "0.1.0",
+  "description": "Personal knowledge brain with semantic search, entity resolution, and relationship traversal",
+  "author": "Garry Tan",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "brainPath": {
+        "type": "string",
+        "description": "Path to the markdown knowledge repository",
+        "default": "/data/brain"
+      },
+      "indexPath": {
+        "type": "string",
+        "description": "Path for the SQLite index database",
+        "default": "/data/db/gbrain.db"
+      },
+      "embeddingModel": {
+        "type": "string",
+        "description": "Embedding model to use (auto-detects from OpenClaw config if not set)",
+        "default": "auto"
+      },
+      "indexTimeline": {
+        "type": "boolean",
+        "description": "Whether to index timeline entries (below the line). Increases index size but enables temporal queries.",
+        "default": false
+      },
+      "watchInterval": {
+        "type": "number",
+        "description": "Seconds between git HEAD polls for incremental re-indexing",
+        "default": 30
+      },
+      "chunkMaxTokens": {
+        "type": "number",
+        "description": "Maximum tokens per chunk for embedding",
+        "default": 1000
+      },
+      "directories": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Directories to index (relative to brainPath). Empty = all.",
+        "default": []
+      },
+      "excludeDirectories": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Directories to skip (e.g. '.raw', 'archive')",
+        "default": [".raw", ".git", "node_modules"]
+      }
+    }
+  }
+}

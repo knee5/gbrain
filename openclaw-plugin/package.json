@@ -1,0 +1,32 @@
+{
+  "name": "@garrytan/openclaw-gbrain",
+  "version": "0.1.0",
+  "description": "Personal knowledge brain plugin for OpenClaw — semantic search, entity resolution, and relationship traversal for markdown knowledge repos",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "openclaw": {
+    "pluginManifest": "openclaw.plugin.json",
+    "extensions": ["tools", "cli", "service"],
+    "compatVersions": {
+      "openclaw": ">=1.0.0"
+    }
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.32.0",
+    "better-sqlite3": "^9.4.0",
+    "gray-matter": "^4.0.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  },
+  "keywords": ["openclaw", "plugin", "knowledge-base", "semantic-search", "markdown"],
+  "author": "Garry Tan",
+  "license": "MIT"
+}
