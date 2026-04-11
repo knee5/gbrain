@@ -33,30 +33,45 @@ STEP 2 — START HERE
     Then provide your Supabase Shared Pooler connection string.
   You can migrate anytime: gbrain migrate --to supabase
 
-STEP 3 — IMPORT
+STEP 3 — SCHEMA
+  Read docs/GBRAIN_RECOMMENDED_SCHEMA.md — this is the brain's directory
+  structure. Set up the MECE directories (people/, companies/, deals/,
+  concepts/, etc.) with README.md resolvers in each. The schema tells
+  you exactly what goes where and how to resolve ambiguity.
+  The agent maintains this structure automatically after setup.
+
+STEP 4 — IMPORT
   Find markdown: find ~/git ~/Documents ~/notes -maxdepth 3 -name "*.md" | head -30
   Tell user what you found. Import: gbrain import /path/ --no-embed
   Verify: gbrain stats (page count > 0)
 
-STEP 4 — SEARCH
+STEP 5 — SEARCH
   Run: gbrain embed --stale (generates vector embeddings, ~1 min per 1000 pages)
   Then: gbrain query "what are the key themes across these documents?"
   Show the user the results. This is the magic moment.
   Verify: results include semantic matches, not just keyword hits
 
-STEP 5 — GO LIVE
+STEP 6 — GO LIVE
   a. Read docs/GBRAIN_SKILLPACK.md — adopt brain-first lookup, entity
      detection, and back-linking into your behavior immediately
   b. Set up live sync: gbrain sync --repo /path/ && gbrain embed --stale
      (see docs/guides/live-sync.md for cron/watch/webhook options)
   c. Set up auto-update: gbrain check-update --json on a daily cron
      (never auto-install — always ask the user first)
-  d. Show available integrations: gbrain integrations
-  e. Run verification: read and execute docs/GBRAIN_VERIFY.md
+  d. Run verification: read and execute docs/GBRAIN_VERIFY.md
+
+STEP 7 — INTEGRATIONS
+  Run: gbrain integrations list
+  For EVERY available recipe, set it up. Each recipe is a markdown file
+  that tells the agent exactly what credentials to ask for, how to
+  validate them, and how to wire the integration. The agent reads the
+  recipe, asks the user for API keys, and handles the rest.
+  Voice, email, calendar, Twitter — install them all.
+  Verify: gbrain integrations doctor (all health checks pass)
 
 DONE. Tell the user: "GBrain is live. You have [N] pages with hybrid
-search. I now check the brain before answering questions. Run
-'gbrain integrations' to add voice, email, calendar, or Twitter."
+search. I now check the brain before answering questions. All available
+integrations are configured."
 ```
 
 ### Without an agent (standalone CLI)
