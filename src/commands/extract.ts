@@ -58,16 +58,44 @@ export function walkMarkdownFiles(dir: string): { path: string; relPath: string 
 
 // --- Link extraction ---
 
-/** Extract markdown links to .md files (relative paths only) */
+/** Extract markdown links to .md files (relative paths only).
+ *
+ * Handles two syntaxes:
+ *   1. Standard markdown:  [text](relative/path.md)
+ *   2. Wikilinks:          [[relative/path]] or [[relative/path|Display Text]]
+ *
+ * Both are resolved relative to the file that contains them, so the caller
+ * receives a relTarget that can be joined with dirname(relPath) to get the
+ * absolute slug.  External URLs (containing ://) are always skipped.
+ */
 export function extractMarkdownLinks(content: string): { name: string; relTarget: string }[] {
   const results: { name: string; relTarget: string }[] = [];
-  const pattern = /\[([^\]]+)\]\(([^)]+\.md)\)/g;
+
+  // Standard markdown links: [text](relative/path.md)
+  const mdPattern = /\[([^\]]+)\]\(([^)]+\.md)\)/g;
   let match;
-  while ((match = pattern.exec(content)) !== null) {
+  while ((match = mdPattern.exec(content)) !== null) {
     const target = match[2];
     if (target.includes('://')) continue; // skip external URLs
     results.push({ name: match[1], relTarget: target });
   }
+
+  // Wikilinks: [[path/to/page]] or [[path/to/page|Display Text]]
+  // Path may or may not carry a .md suffix; normalise to include it.
+  // Skip external URLs like [[https://example.com|Title]].
+  const wikiPattern = /\[\[([^|\]]+?)(?:\|[^\]]*?)?\]\]/g;
+  while ((match = wikiPattern.exec(content)) !== null) {
+    const rawPath = match[1].trim();
+    if (rawPath.includes('://')) continue; // skip [[https://...]]
+    const relTarget = rawPath.endsWith('.md') ? rawPath : rawPath + '.md';
+    // Use the display text portion if present, otherwise the raw path
+    const pipeIdx = match[0].indexOf('|');
+    const displayName = pipeIdx >= 0
+      ? match[0].slice(pipeIdx + 1, -2).trim()
+      : rawPath;
+    results.push({ name: displayName, relTarget });
+  }
+
   return results;
 }
 
@@ -177,7 +205,16 @@ export function extractTimelineFromContent(content: string, slug: string): Extra
 export async function runExtract(engine: BrainEngine, args: string[]) {
   const subcommand = args[0];
   const dirIdx = args.indexOf('--dir');
-  const brainDir = (dirIdx >= 0 && dirIdx + 1 < args.length) ? args[dirIdx + 1] : '.';
+  // Support both --dir <path> flag and positional [dir] argument.
+  // Positional dir is args[1] when it doesn't start with '--' (and --dir flag is absent).
+  let brainDir: string;
+  if (dirIdx >= 0 && dirIdx + 1 < args.length) {
+    brainDir = args[dirIdx + 1];
+  } else if (args[1] && !args[1].startsWith('--')) {
+    brainDir = args[1];
+  } else {
+    brainDir = '.';
+  }
   const dryRun = args.includes('--dry-run');
   const jsonMode = args.includes('--json');
 
