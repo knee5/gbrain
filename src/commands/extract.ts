@@ -83,11 +83,16 @@ export function extractMarkdownLinks(content: string): { name: string; relTarget
   // Wikilinks: [[path/to/page]] or [[path/to/page|Display Text]]
   // Path may or may not carry a .md suffix; normalise to include it.
   // Skip external URLs like [[https://example.com|Title]].
+  // Strip section anchors: [[page#section|Title]] → page
   const wikiPattern = /\[\[([^|\]]+?)(?:\|[^\]]*?)?\]\]/g;
   while ((match = wikiPattern.exec(content)) !== null) {
     const rawPath = match[1].trim();
     if (rawPath.includes('://')) continue; // skip [[https://...]]
-    const relTarget = rawPath.endsWith('.md') ? rawPath : rawPath + '.md';
+    // Strip section anchors (#heading) — they're intra-page refs, not page slugs
+    const hashIdx = rawPath.indexOf('#');
+    const pagePath = hashIdx >= 0 ? rawPath.slice(0, hashIdx) : rawPath;
+    if (!pagePath) continue; // bare [[#anchor]] — same-page ref, skip
+    const relTarget = pagePath.endsWith('.md') ? pagePath : pagePath + '.md';
     // Use the display text portion if present, otherwise the raw path
     const pipeIdx = match[0].indexOf('|');
     const displayName = pipeIdx >= 0
@@ -97,6 +102,47 @@ export function extractMarkdownLinks(content: string): { name: string; relTarget
   }
 
   return results;
+}
+
+/**
+ * Resolve a wikilink target (relative path from extractMarkdownLinks) to a
+ * canonical slug, given the directory of the containing page and the set of
+ * all known slugs in the brain.
+ *
+ * Wiki KBs often use inconsistent relative depths:
+ *   - Same-directory bare name: [[foo-bar]] from tech/wiki/analysis/ → tech/wiki/analysis/foo-bar  ✓
+ *   - Cross-type shorthand: [[analysis/foo]] from {domain}/wiki/guides/ → {domain}/wiki/analysis/foo
+ *     (author omits the leading ../ because they think in "wiki-root-relative" terms)
+ *   - Cross-domain with one-too-few ../: [[../../finance/wiki/...]] from {domain}/wiki/analysis/
+ *     resolves to {domain}/finance/wiki/... instead of finance/wiki/... because depth-3 dirs
+ *     need 3 × ../ to reach KB root, but authors only write 2 ×
+ *
+ * Resolution order (first match wins):
+ *   1. Standard join(fileDir, relTarget) — exact relative path as written
+ *   2. Progressively strip leading path components from fileDir (ancestor search):
+ *      tries parent dir, grandparent dir, … up to KB root.
+ *      Handles both cross-type and cross-domain under-specified paths.
+ *
+ * Returns null when no matching slug is found (dangling link).
+ */
+export function resolveSlug(fileDir: string, relTarget: string, allSlugs: Set<string>): string | null {
+  const targetNoExt = relTarget.endsWith('.md') ? relTarget.slice(0, -3) : relTarget;
+
+  // Strategy 1: standard relative resolution
+  const s1 = join(fileDir, targetNoExt);
+  if (allSlugs.has(s1)) return s1;
+
+  // Strategy 2: ancestor search — try each parent directory in turn.
+  // This resolves links whose authors omitted one or more leading ../
+  // (common when targeting sibling subdirectories or cross-domain pages).
+  const parts = fileDir.split('/').filter(Boolean);
+  for (let strip = 1; strip <= parts.length; strip++) {
+    const ancestor = parts.slice(0, parts.length - strip).join('/');
+    const candidate = ancestor ? join(ancestor, targetNoExt) : targetNoExt;
+    if (allSlugs.has(candidate)) return candidate;
+  }
+
+  return null;
 }
 
 /** Infer link type from directory structure */
@@ -156,8 +202,8 @@ export function extractLinksFromFile(
   const fm = parseFrontmatterFromContent(content, relPath);
 
   for (const { name, relTarget } of extractMarkdownLinks(content)) {
-    const resolved = join(fileDir, relTarget).replace('.md', '');
-    if (allSlugs.has(resolved)) {
+    const resolved = resolveSlug(fileDir, relTarget, allSlugs);
+    if (resolved !== null) {
       links.push({
         from_slug: slug, to_slug: resolved,
         link_type: inferLinkType(fileDir, dirname(resolved), fm),
