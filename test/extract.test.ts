@@ -4,6 +4,7 @@ import {
   extractLinksFromFile,
   extractTimelineFromContent,
   walkMarkdownFiles,
+  resolveSlug,
 } from '../src/commands/extract.ts';
 
 describe('extractMarkdownLinks', () => {
@@ -188,6 +189,90 @@ describe('extractLinksFromFile — wikilink integration', () => {
     const links = extractLinksFromFile(content, 'deals/test-deal.md', allSlugs);
     const ghostLink = links.find(l => l.to_slug === 'concepts/ghost');
     expect(ghostLink).toBeUndefined();
+  });
+});
+
+describe('resolveSlug', () => {
+  const allSlugs = new Set([
+    'tech/wiki/concepts/foo-bar',
+    'tech/wiki/analysis/ai-overview',
+    'tech/raw/source-x',
+    'finance/wiki/analysis/foo',
+    'finance/wiki/concepts/billionaire-patterns',
+    'personal/wiki/analysis/life-design',
+    'personal/wiki/guides/fire-planning',
+  ]);
+
+  it('resolves relative wikilink in same directory', () => {
+    // [[foo-bar]] from tech/wiki/concepts/some-page → tech/wiki/concepts/foo-bar
+    expect(resolveSlug('tech/wiki/concepts', 'foo-bar.md', allSlugs))
+      .toBe('tech/wiki/concepts/foo-bar');
+  });
+
+  it('resolves cross-type wikilink (concepts → analysis sibling)', () => {
+    // [[analysis/ai-overview]] from tech/wiki/concepts/ → tech/wiki/analysis/ai-overview
+    // Author omits ../ and writes subdirectory-relative from the wiki root
+    expect(resolveSlug('tech/wiki/concepts', 'analysis/ai-overview.md', allSlugs))
+      .toBe('tech/wiki/analysis/ai-overview');
+  });
+
+  it('resolves parent-relative [[../raw/source-x]] from tech/wiki/analysis/', () => {
+    // Standard ../ traversal — already handled by join, verifying it still works
+    expect(resolveSlug('tech/wiki/analysis', '../raw/source-x.md', allSlugs))
+      .toBe('tech/raw/source-x');
+  });
+
+  it('resolves deep parent-relative [[../../finance/wiki/analysis/foo]] from tech/wiki/analysis/', () => {
+    // Author writes ../../finance from depth-3 dir; needs ancestor search to find
+    // the correct finance/wiki/analysis/foo rather than tech/finance/wiki/analysis/foo
+    expect(resolveSlug('tech/wiki/analysis', '../../finance/wiki/analysis/foo.md', allSlugs))
+      .toBe('finance/wiki/analysis/foo');
+  });
+
+  it('resolves fully-qualified wikilink [[tech/wiki/concepts/foo-bar]]', () => {
+    // Fully-qualified path: works as-is from any location if resolved against root
+    expect(resolveSlug('personal/wiki/analysis', 'tech/wiki/concepts/foo-bar.md', allSlugs))
+      .toBe('tech/wiki/concepts/foo-bar');
+  });
+
+  it('strips display-text suffix before resolving (via extractMarkdownLinks)', () => {
+    // [[tech/wiki/concepts/foo-bar|Foo Bar]] — relTarget already has .md, name is display text
+    // resolveSlug receives the relTarget without the | part (extractMarkdownLinks handles it)
+    expect(resolveSlug('personal/wiki/analysis', 'tech/wiki/concepts/foo-bar.md', allSlugs))
+      .toBe('tech/wiki/concepts/foo-bar');
+  });
+
+  it('returns null for dangling target (slug not in allSlugs)', () => {
+    expect(resolveSlug('tech/wiki/analysis', 'nonexistent-page.md', allSlugs))
+      .toBeNull();
+  });
+
+  it('resolves cross-domain from personal/wiki/guides with partial path', () => {
+    // [[analysis/life-design]] from personal/wiki/guides/ → personal/wiki/analysis/life-design
+    expect(resolveSlug('personal/wiki/guides', 'analysis/life-design.md', allSlugs))
+      .toBe('personal/wiki/analysis/life-design');
+  });
+});
+
+describe('extractMarkdownLinks — section anchors', () => {
+  it('strips section anchor from wikilink [[page#section]]', () => {
+    const content = '[[tech/wiki/concepts/foo-bar#some-section|Foo Bar]]';
+    const links = extractMarkdownLinks(content);
+    expect(links).toHaveLength(1);
+    expect(links[0].relTarget).toBe('tech/wiki/concepts/foo-bar.md');
+  });
+
+  it('skips bare same-page anchor [[#section]]', () => {
+    const content = 'See [[#metrics|Metrics]] for details.';
+    const links = extractMarkdownLinks(content);
+    expect(links).toHaveLength(0);
+  });
+
+  it('strips anchor from bare wikilink [[page#section]] without display text', () => {
+    const content = '[[ai-overview#key-findings]]';
+    const links = extractMarkdownLinks(content);
+    expect(links).toHaveLength(1);
+    expect(links[0].relTarget).toBe('ai-overview.md');
   });
 });
 
