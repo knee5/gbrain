@@ -18,7 +18,7 @@ for (const op of operations) {
 }
 
 // CLI-only commands that bypass the operation layer
-const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot']);
+const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'orphans']);
 
 async function main() {
   const args = process.argv.slice(2);
@@ -367,6 +367,11 @@ async function handleCliOnly(command: string, args: string[]) {
         await runAutopilot(engine, args);
         return; // autopilot doesn't disconnect (long-running)
       }
+      case 'orphans': {
+        const { runOrphans } = await import('./commands/orphans.ts');
+        await runOrphans(engine, args);
+        break;
+      }
     }
   } finally {
     if (command !== 'serve') await engine.disconnect();
@@ -469,6 +474,7 @@ TOOLS
   publish <page.md> [--password]     Shareable HTML (strips private data, optional AES-256)
   check-backlinks <check|fix> [dir]  Find/fix missing back-links across brain
   lint <dir|file> [--fix]            Catch LLM artifacts, placeholder dates, bad frontmatter
+  orphans [--json] [--count]         Find pages with no inbound wikilinks
   report --type <name> --content ... Save timestamped report to brain/reports/
 
 ADMIN
