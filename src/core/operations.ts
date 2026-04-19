@@ -285,7 +285,24 @@ const list_pages: Operation = {
       tag: p.tag as string,
       limit: clampSearchLimit(p.limit as number | undefined, 50, 100),
     });
-    return pages.map(pg => ({
+
+    // Apply tier-based visibility filter when configured. We must hydrate
+    // tags per page to run the filter; pages returned by listPages don't
+    // include tags. For default list sizes (≤100) this is a bounded cost.
+    let visible = pages;
+    if (shouldEnforce(ctx.tier)) {
+      const cfg = getAccessConfig();
+      if (cfg) {
+        const withTags = await Promise.all(
+          pages.map(async (pg) => ({ pg, tags: await ctx.engine.getTags(pg.slug) })),
+        );
+        visible = withTags
+          .filter(({ pg, tags }) => isVisibleToTier({ slug: pg.slug, tags }, ctx.tier!, cfg))
+          .map(({ pg }) => pg);
+      }
+    }
+
+    return visible.map(pg => ({
       slug: pg.slug,
       type: pg.type,
       title: pg.title,
