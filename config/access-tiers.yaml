@@ -1,13 +1,17 @@
 # Access-tier rules for gbrain.
 # Read by src/core/access-config.ts on startup.
 # Each tier defines allow_tags (whitelist) + block_tags (blacklist).
-# Visibility logic:
+# Visibility logic (block-wins semantics):
 #   - A tier with empty allow_tags = default-allow (sees everything not blocked).
 #   - A tier with populated allow_tags = only sees pages with at least one allow tag.
-#   - Any matching block tag = page is hidden (blocks win over allows).
-#   - `sensitivity:public` overrides normal rules (all tiers see it).
-#   - `sensitivity:owner-only` visible only to `full`.
-#   - Untagged pages visible only to `full` (default-deny to motivate migration).
+#   - Any matching block tag = page is hidden. Blocks WIN over allows unconditionally
+#     (including over sensitivity:public — a page marked public can still be blocked
+#     by any tier's block_tags).
+#   - `sensitivity:public` appears in most tiers' allow_tags so scoped partners see
+#     explicitly-public content by default, but it does NOT bypass block_tags.
+#   - `sensitivity:owner-only` is in every tier's block_tags except `full` — only
+#     clevin sees it.
+#   - Untagged pages are visible only to `full` (default-deny motivates migration).
 #
 # Overlay support:
 #   Tiers like `work_scoped` intentionally ship with empty allow_tags here.
