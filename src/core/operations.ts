@@ -12,6 +12,8 @@ import { importFromContent } from './import-file.ts';
 import { hybridSearch } from './search/hybrid.ts';
 import { expandQuery } from './search/expansion.ts';
 import { dedupResults } from './search/dedup.ts';
+import { getAccessConfig, shouldEnforce } from './access-context.ts';
+import { filterByTier, isVisibleToTier } from './access-filter.ts';
 import * as db from './db.ts';
 
 // --- Types ---
@@ -222,6 +224,17 @@ const get_page: Operation = {
     }
 
     const tags = await ctx.engine.getTags(page.slug);
+
+    // Apply tier-based visibility filter when configured. If the tier cannot
+    // see the page, treat it as not-found — don't leak existence via a
+    // distinguishable error code.
+    if (shouldEnforce(ctx.tier)) {
+      const cfg = getAccessConfig();
+      if (cfg && !isVisibleToTier({ slug: page.slug, tags }, ctx.tier!, cfg)) {
+        throw new OperationError('page_not_found', `Page not found: ${slug}`);
+      }
+    }
+
     return { ...page, tags, ...(resolved_slug ? { resolved_slug } : {}) };
   },
   cliHints: { name: 'get', positional: ['slug'] },
