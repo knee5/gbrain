@@ -19,7 +19,7 @@ const cfg: AccessConfig = {
         "sensitivity:owner-only",
       ],
     },
-    work_jaci_bela: {
+    work_scoped: {
       description: "jaci-scoped",
       allow_tags: ["scope:jaci-bela", "sensitivity:public"],
       block_tags: ["sensitivity:owner-only"],
@@ -73,15 +73,15 @@ describe("isVisibleToTier — family tier", () => {
   });
 });
 
-describe("isVisibleToTier — work_jaci_bela tier", () => {
+describe("isVisibleToTier — work_scoped tier", () => {
   test("sees scope:jaci-bela pages", () => {
-    expect(isVisibleToTier(p("a", ["scope:jaci-bela"]), "work_jaci_bela", cfg)).toBe(true);
+    expect(isVisibleToTier(p("a", ["scope:jaci-bela"]), "work_scoped", cfg)).toBe(true);
   });
   test("blocked from non-jaci content", () => {
-    expect(isVisibleToTier(p("a", ["domain:finance"]), "work_jaci_bela", cfg)).toBe(false);
+    expect(isVisibleToTier(p("a", ["domain:finance"]), "work_scoped", cfg)).toBe(false);
   });
   test("blocked from untagged", () => {
-    expect(isVisibleToTier(p("a", []), "work_jaci_bela", cfg)).toBe(false);
+    expect(isVisibleToTier(p("a", []), "work_scoped", cfg)).toBe(false);
   });
 });
 
