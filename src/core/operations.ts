@@ -165,6 +165,16 @@ export interface OperationContext {
    * When unset, operations MUST default to the stricter (remote=true) behavior.
    */
   remote?: boolean;
+  /**
+   * Optional tier-based visibility constraint. When set, read operations
+   * filter their output through filterByTier before returning. When unset
+   * (or the access-tiers config file is absent), no filtering applies —
+   * all results are returned as-is (backwards-compatible default).
+   *
+   * Phase 2 callers: CLI leaves this unset (owner has full access).
+   *                  MCP reads it from access_tokens.scopes in a follow-up.
+   */
+  tier?: string;
 }
 
 export interface Operation {
