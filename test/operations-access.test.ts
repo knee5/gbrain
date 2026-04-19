@@ -63,7 +63,8 @@ class MockEngine implements Partial<BrainEngine> {
       page_id: p.id,
       title: p.title,
       type: p.type,
-      chunk_text: '',
+      // Unique text per slug so dedupResults' Jaccard pass doesn't collapse them
+      chunk_text: `content for ${p.slug} unique token ${i}`,
       chunk_source: 'compiled_truth',
       chunk_id: i,
       chunk_index: 0,
@@ -247,8 +248,9 @@ describe('search + query with access filter', () => {
 
   it('search returns all results when tier unset', async () => {
     const engine = new MockEngine();
-    engine.addPage({ slug: 'a', tags: ['domain:finance'] });
-    engine.addPage({ slug: 'b', tags: ['domain:personal'] });
+    // Use different page types to avoid dedupResults' 60% type diversity cap
+    engine.addPage({ slug: 'a', type: 'person', tags: ['domain:finance'] });
+    engine.addPage({ slug: 'b', type: 'concept', tags: ['domain:personal'] });
     const ctx = makeCtx(engine, undefined);
     const results = await operationsByName.search.handler(ctx, { query: 'x' }) as any[];
     expect(results.length).toBe(2);
@@ -257,8 +259,8 @@ describe('search + query with access filter', () => {
   it('search filters blocked pages by tier', async () => {
     writeTiersConfig();
     const engine = new MockEngine();
-    engine.addPage({ slug: 'a', tags: ['domain:finance'] });
-    engine.addPage({ slug: 'b', tags: ['domain:personal'] });
+    engine.addPage({ slug: 'a', type: 'person', tags: ['domain:finance'] });
+    engine.addPage({ slug: 'b', type: 'concept', tags: ['domain:personal'] });
     const ctx = makeCtx(engine, 'family');
     const results = await operationsByName.search.handler(ctx, { query: 'x' }) as any[];
     const slugs = results.map((r) => r.slug);
@@ -273,8 +275,8 @@ describe('search + query with access filter', () => {
   it('query filters blocked pages by tier', async () => {
     writeTiersConfig();
     const engine = new MockEngine();
-    engine.addPage({ slug: 'a', tags: ['domain:finance'] });
-    engine.addPage({ slug: 'b', tags: ['domain:personal'] });
+    engine.addPage({ slug: 'a', type: 'person', tags: ['domain:finance'] });
+    engine.addPage({ slug: 'b', type: 'concept', tags: ['domain:personal'] });
     const ctx = makeCtx(engine, 'family');
     const results = await operationsByName.query.handler(ctx, {
       query: 'x',
