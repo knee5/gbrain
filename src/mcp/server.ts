@@ -6,6 +6,7 @@ import { operations, OperationError } from '../core/operations.ts';
 import type { Operation, OperationContext } from '../core/operations.ts';
 import { loadConfig } from '../core/config.ts';
 import { VERSION } from '../version.ts';
+import { resolveTierForRequest } from './tier-extraction.ts';
 
 /** Validate required params exist and have the expected type */
 function validateParams(op: Operation, params: Record<string, unknown>): string | null {
@@ -31,6 +32,19 @@ export async function startMcpServer(engine: BrainEngine) {
     { name: 'gbrain', version: VERSION },
     { capabilities: { tools: {} } },
   );
+
+  // Resolve the caller's access tier once at server start. stdio is a single
+  // trusted session bound to whatever token/tier the launcher configured, so
+  // we avoid a DB roundtrip per tool call. HTTP wrappers that multiplex tokens
+  // across requests should import resolveTierForRequest directly and set the
+  // tier per-request on the OperationContext they build.
+  const tierLogger = {
+    warn: (msg: string) => process.stderr.write(`[warn] ${msg}\n`),
+  };
+  const sessionTier = await resolveTierForRequest(engine, tierLogger);
+  if (sessionTier) {
+    process.stderr.write(`[info] MCP session tier: ${sessionTier}\n`);
+  }
 
   // Generate tool definitions from operations
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -73,6 +87,10 @@ export async function startMcpServer(engine: BrainEngine) {
       dryRun: !!(params?.dry_run),
       // MCP stdio callers are remote/untrusted; enforce strict file confinement.
       remote: true,
+      // Tier-based visibility constraint, resolved once at server start from
+      // GBRAIN_MCP_TIER or GBRAIN_MCP_TOKEN. Undefined → no filtering (the
+      // backwards-compatible default for deployments without access tiers).
+      tier: sessionTier,
     };
 
     const safeParams = params || {};
