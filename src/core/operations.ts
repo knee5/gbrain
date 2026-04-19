@@ -314,6 +314,34 @@ const list_pages: Operation = {
 
 // --- Search ---
 
+/**
+ * Filter a list of search-result-like objects (anything with a `slug` field)
+ * through the configured tier's visibility rules. Hydrates tags once per
+ * unique slug to avoid O(n²) lookups for chunk-heavy result sets.
+ *
+ * Returns the input unchanged when ctx.tier or config are absent.
+ */
+async function filterSearchResultsByTier<T extends { slug: string }>(
+  ctx: OperationContext,
+  results: T[],
+): Promise<T[]> {
+  if (!shouldEnforce(ctx.tier)) return results;
+  const cfg = getAccessConfig();
+  if (!cfg) return results;
+
+  const uniqueSlugs = [...new Set(results.map((r) => r.slug))];
+  const tagCache = new Map<string, string[]>();
+  await Promise.all(
+    uniqueSlugs.map(async (slug) => {
+      tagCache.set(slug, await ctx.engine.getTags(slug));
+    }),
+  );
+
+  return results.filter((r) =>
+    isVisibleToTier({ slug: r.slug, tags: tagCache.get(r.slug) ?? [] }, ctx.tier!, cfg),
+  );
+}
+
 const search: Operation = {
   name: 'search',
   description: 'Keyword search using full-text search',
@@ -327,7 +355,8 @@ const search: Operation = {
       limit: (p.limit as number) || 20,
       offset: (p.offset as number) || 0,
     });
-    return dedupResults(results);
+    const deduped = dedupResults(results);
+    return filterSearchResultsByTier(ctx, deduped);
   },
   cliHints: { name: 'search', positional: ['query'] },
 };
@@ -345,13 +374,14 @@ const query: Operation = {
   handler: async (ctx, p) => {
     const expand = p.expand !== false;
     const detail = (p.detail as 'low' | 'medium' | 'high') || undefined;
-    return hybridSearch(ctx.engine, p.query as string, {
+    const results = await hybridSearch(ctx.engine, p.query as string, {
       limit: (p.limit as number) || 20,
       offset: (p.offset as number) || 0,
       expansion: expand,
       expandFn: expand ? expandQuery : undefined,
       detail,
     });
+    return filterSearchResultsByTier(ctx, results);
   },
   cliHints: { name: 'query', positional: ['query'] },
 };
