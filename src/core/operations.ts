@@ -427,7 +427,17 @@ const get_tags: Operation = {
     slug: { type: 'string', required: true },
   },
   handler: async (ctx, p) => {
-    return ctx.engine.getTags(p.slug as string);
+    const slug = p.slug as string;
+    const tags = await ctx.engine.getTags(slug);
+    // Slug-keyed op: if the page itself is hidden from this tier, don't leak
+    // its tag set (which would reveal both existence and sensitivity labels).
+    if (shouldEnforce(ctx.tier)) {
+      const cfg = getAccessConfig();
+      if (cfg && !isVisibleToTier({ slug, tags }, ctx.tier!, cfg)) {
+        return [];
+      }
+    }
+    return tags;
   },
   cliHints: { name: 'tags', positional: ['slug'] },
 };
@@ -471,6 +481,34 @@ const remove_link: Operation = {
   cliHints: { name: 'unlink', positional: ['from', 'to'] },
 };
 
+/**
+ * Filter a list of Link rows by whether the configured tier can see the slug
+ * at the given side of each link (`to_slug` for outgoing, `from_slug` for
+ * backlinks). Hydrates tags once per unique slug. No-op when enforcement
+ * is off.
+ */
+async function filterLinksByTier(
+  ctx: OperationContext,
+  links: Array<{ from_slug: string; to_slug: string }>,
+  side: 'from_slug' | 'to_slug',
+): Promise<Array<{ from_slug: string; to_slug: string }>> {
+  if (!shouldEnforce(ctx.tier)) return links as any;
+  const cfg = getAccessConfig();
+  if (!cfg) return links as any;
+
+  const uniqueSlugs = [...new Set(links.map((l) => l[side]))];
+  const tagCache = new Map<string, string[]>();
+  await Promise.all(
+    uniqueSlugs.map(async (slug) => {
+      tagCache.set(slug, await ctx.engine.getTags(slug));
+    }),
+  );
+
+  return links.filter((l) =>
+    isVisibleToTier({ slug: l[side], tags: tagCache.get(l[side]) ?? [] }, ctx.tier!, cfg),
+  );
+}
+
 const get_links: Operation = {
   name: 'get_links',
   description: 'List outgoing links from a page',
@@ -478,7 +516,8 @@ const get_links: Operation = {
     slug: { type: 'string', required: true },
   },
   handler: async (ctx, p) => {
-    return ctx.engine.getLinks(p.slug as string);
+    const links = await ctx.engine.getLinks(p.slug as string);
+    return filterLinksByTier(ctx, links, 'to_slug');
   },
 };
 
@@ -489,7 +528,8 @@ const get_backlinks: Operation = {
     slug: { type: 'string', required: true },
   },
   handler: async (ctx, p) => {
-    return ctx.engine.getBacklinks(p.slug as string);
+    const links = await ctx.engine.getBacklinks(p.slug as string);
+    return filterLinksByTier(ctx, links, 'from_slug');
   },
   cliHints: { name: 'backlinks', positional: ['slug'] },
 };
@@ -540,7 +580,16 @@ const get_timeline: Operation = {
     slug: { type: 'string', required: true },
   },
   handler: async (ctx, p) => {
-    return ctx.engine.getTimeline(p.slug as string);
+    const slug = p.slug as string;
+    // Slug-keyed: if the underlying page is hidden from this tier, return []
+    if (shouldEnforce(ctx.tier)) {
+      const cfg = getAccessConfig();
+      if (cfg) {
+        const tags = await ctx.engine.getTags(slug);
+        if (!isVisibleToTier({ slug, tags }, ctx.tier!, cfg)) return [];
+      }
+    }
+    return ctx.engine.getTimeline(slug);
   },
   cliHints: { name: 'timeline', positional: ['slug'] },
 };
@@ -672,7 +721,16 @@ const get_chunks: Operation = {
     slug: { type: 'string', required: true },
   },
   handler: async (ctx, p) => {
-    return ctx.engine.getChunks(p.slug as string);
+    const slug = p.slug as string;
+    // Slug-keyed: if the underlying page is hidden from this tier, return []
+    if (shouldEnforce(ctx.tier)) {
+      const cfg = getAccessConfig();
+      if (cfg) {
+        const tags = await ctx.engine.getTags(slug);
+        if (!isVisibleToTier({ slug, tags }, ctx.tier!, cfg)) return [];
+      }
+    }
+    return ctx.engine.getChunks(slug);
   },
 };
 
