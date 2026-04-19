@@ -8,18 +8,26 @@
 #   - `sensitivity:public` overrides normal rules (all tiers see it).
 #   - `sensitivity:owner-only` visible only to `full`.
 #   - Untagged pages visible only to `full` (default-deny to motivate migration).
+#
+# Overlay support:
+#   Tiers like `work_scoped` intentionally ship with empty allow_tags here.
+#   Concrete product-to-scope bindings (e.g. scope:jaci-bela) live in a private
+#   overlay YAML passed as a second arg to loadAccessConfig (or via the
+#   $ACCESS_TIERS_OVERLAY_PATH env var). The overlay can only *extend*
+#   allow_tags/block_tags of existing tiers — it cannot define new tiers.
+#   This keeps product-specific partner names out of the public gbrain repo.
 
 version: 1
 
 tiers:
   full:
-    description: "clevin + Stacia. Sees everything except sensitivity:owner-only."
+    description: "Owner + fully-trusted partners. Sees everything except sensitivity:owner-only."
     allow_tags: []
     block_tags:
       - "sensitivity:owner-only"
 
   family:
-    description: "dad (Gavin), mom, Priscila at Family tier."
+    description: "Family-tier members. Family + personal domains, plus dads-house-sale scope."
     allow_tags:
       - "domain:family"
       - "domain:personal"
@@ -36,10 +44,9 @@ tiers:
       - "scope:idearanker"
       - "sensitivity:owner-only"
 
-  work_jaci_bela:
-    description: "Priscila's scoped-to-jaci-bela overlay. Combines with her family tier additively at the token-grant layer."
+  work_scoped:
+    description: "Scoped work-tier partner. allow_tags intentionally empty; concrete scope bindings live in the private overlay file (see header comment)."
     allow_tags:
-      - "scope:jaci-bela"
       - "sensitivity:public"
     block_tags:
       - "sensitivity:owner-only"
