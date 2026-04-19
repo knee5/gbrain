@@ -110,3 +110,22 @@ Brain page created with summary, highlights, and entity cross-links. Report to u
 - Filing by format (all videos in `media/videos/`) instead of by subject
 - Not preserving raw source files
 - Creating stub pages without meaningful content
+
+## Tag Emission (2026-04-19)
+
+Emit ACCESS_POLICY tags on every ingested video/audio/PDF/book/screenshot/repo.
+
+**Heuristics by source:**
+- YouTube channel tagged as tech/business → `domain:tech`
+- Podcast tagged as finance (All-In, MyFirstMillion, etc.) → `domain:finance`
+- Podcast tagged as personal/Blueprint/Peter Attia → `domain:health` or `domain:personal`
+- PDF from work → `domain:work` + `scope:x-energy` if NDA
+- Book on health → `domain:health`; on business → `domain:finance` or `domain:tech`; on personal growth → `domain:personal`
+- GitHub repo → `domain:tech` (+ `scope:*` if it's a tracked project dep)
+
+**Scope (project-specific):**
+- Jaci Bela demo videos → `scope:jaci-bela`
+- Landscaping research videos → `scope:landscaping-saas`
+- Dad's house listing photos → `scope:dads-house-sale` + `domain:family`
+
+**Implementation:** call `mcp__gbrain__add_tag` after `put_page`. See `idea-ingest` for the same contract.

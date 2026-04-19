@@ -302,3 +302,21 @@ Raw source: [preserved at path / uploaded to cloud]
 - Tag a page in gbrain (add_tag)
 - Store raw data in gbrain (put_raw_data)
 - Check backlinks in gbrain (get_backlinks)
+
+## Tag Emission Contract (2026-04-19)
+
+Every page created by ingest or its child skills MUST have at least one `domain:*` tag. The router enforces this by passing a tag requirement to child skills.
+
+**Default domain mapping** (if child doesn't override):
+- Podcast / YouTube transcripts → `domain:tech` unless content is clearly finance/health/personal
+- Blog / article → classify via URL heuristics + content
+- Person page → `domain:personal` (enrich owns this)
+- Company page → `domain:tech` unless health/finance
+- Meeting transcript → `domain:work` unless clearly personal
+
+**Required output:**
+- Every page gets exactly one `domain:*` tag
+- Project-specific content gets a `scope:*` tag (scope:jaci-bela, scope:landscaping-saas, scope:idearanker, scope:openclaw, scope:kb, scope:dads-house-sale, scope:x-energy)
+- Public-safe content can get `sensitivity:public` (rare)
+
+Child skills (`idea-ingest`, `media-ingest`, `meeting-ingestion`) call `mcp__gbrain__add_tag` before the ingest is considered complete. Taxonomy authoritative in clevin's kb: `openclaw/config/workspace/ACCESS_POLICY.md`.

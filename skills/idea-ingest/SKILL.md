@@ -97,3 +97,26 @@ Format: `- **YYYY-MM-DD** | Referenced in [page title](path) — brief context`
 - Skipping the author people page
 - Not cross-linking to mentioned entities
 - Ingesting without checking brain first for existing coverage
+
+## Tag Emission (2026-04-19)
+
+When ingesting a link / article / tweet, emit ACCESS_POLICY tags before marking ingest complete.
+
+**Domain classification** (derive from URL + content):
+- Finance (stocks, investing, crypto, macroeconomics) → `domain:finance`
+- Health (Bryan Johnson, Blueprint, supplements, sleep, workouts) → `domain:health`
+- Family (private, from family-shared sources) → `domain:family`
+- Personal (goals, decisions, logs — non-family) → `domain:personal`
+- Work (X-energy or similar work context) → `domain:work`
+- Tech / everything else → `domain:tech`
+
+**Scope tagging** (if URL/context matches a tracked project):
+- Jaci-bela / aesthetics / dermatology / surgeon content → `scope:jaci-bela`
+- Landscaping / Stacia's PhD research → `scope:landscaping-saas`
+- IdeaRanker → `scope:idearanker`
+- Openclaw infra → `scope:openclaw`
+- KB meta → `scope:kb`
+
+**Sensitivity** (rare): `sensitivity:public` for already-public / widely-cited content.
+
+**Implementation:** after `mcp__gbrain__put_page`, call `mcp__gbrain__add_tag` for each tag. Log applied tags in the ingest summary.
