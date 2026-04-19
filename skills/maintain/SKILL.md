@@ -262,3 +262,26 @@ The maintenance report follows this structure:
 - Tag a page in gbrain (add_tag)
 - Remove a tag in gbrain (remove_tag)
 - View timeline in gbrain (get_timeline)
+
+## Untagged Pages Check (2026-04-19)
+
+During the regular sweep, count pages without any `domain:*` tag. These are pages that slipped past ingest/enrich's tag-emission contract.
+
+**Procedure (pseudocode):**
+
+```
+pages = mcp__gbrain__list_pages({ limit: 10000 })
+untagged = []
+for page in pages:
+    tags = mcp__gbrain__get_tags(page.slug)
+    if not any(t.startswith("domain:") for t in tags):
+        untagged.append(page.slug)
+if len(untagged) > 50:
+    report(f"ALERT: {len(untagged)} pages lack domain:* tags. Run kb/scripts/llm-triage-access-tags.py.")
+else:
+    note(f"Untagged: {len(untagged)}. Top 10: {untagged[:10]}")
+```
+
+Output goes into the standard maintain report. Moss's weekly-lint should surface untagged-count as a dedicated section so it's triageable.
+
+**Do not auto-tag during maintain.** Tagging requires content classification; the triage script (Haiku) is the right tool. Maintain only flags.

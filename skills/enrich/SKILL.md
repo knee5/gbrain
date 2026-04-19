@@ -348,3 +348,20 @@ Both page types have bidirectional back-links to every entity they mention.
 - Retrieve raw data from gbrain (get_raw_data)
 - Link entities in gbrain (add_link)
 - Check backlinks in gbrain (get_backlinks)
+
+## Tag Emission (2026-04-19)
+
+Person and company pages get `domain:*` tags during enrichment write-back.
+
+**Person pages (`people/*`):**
+- Default: `domain:personal`
+- Also tag `domain:family` if the person IS a family member (dad, mom, siblings, extended)
+- Also tag the relevant `scope:*` if the person is a project partner (Stacia → `scope:landscaping-saas`, Priscila → `scope:jaci-bela`)
+
+**Company pages (`companies/*`):**
+- Default: `domain:tech` (most tracked companies are tech businesses)
+- If the company is biotech/pharma/medical → `domain:health`
+- If the company is bank / fund / brokerage → `domain:finance`
+- Add `scope:*` if the company is specifically relevant to a tracked project
+
+**Implementation:** during enrich write-back, call `mcp__gbrain__add_tag` once per resolved tag before returning success. Re-enriching is idempotent — tag adds are dedup'd by `UNIQUE(page_id, tag)`.
