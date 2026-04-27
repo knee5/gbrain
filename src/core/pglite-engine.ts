@@ -86,9 +86,25 @@ export class PGLiteEngine implements BrainEngine {
   }
 
   async initSchema(): Promise<void> {
-    await this.db.exec(PGLITE_SCHEMA_SQL);
+    // Big-jump-upgrade safety: see the matching comment in postgres-engine.ts.
+    // PGLite-backed brains hit the same hazard if a user keeps an existing
+    // .pglite file across many gbrain releases — PGLITE_SCHEMA_SQL references
+    // columns added by intermediate migrations. Detect existing brains via
+    // the migrations-managed config table and run migrations FIRST.
+    const cfgCheck = await this.db.query<{ t: string | null }>(
+      "SELECT to_regclass('public.config') AS t",
+    );
+    const isFreshInstall = cfgCheck.rows[0]?.t === null;
 
-    const { applied } = await runMigrations(this);
+    let applied = 0;
+    if (isFreshInstall) {
+      await this.db.exec(PGLITE_SCHEMA_SQL);
+      applied = (await runMigrations(this)).applied;
+    } else {
+      applied = (await runMigrations(this)).applied;
+      await this.db.exec(PGLITE_SCHEMA_SQL);
+    }
+
     if (applied > 0) {
       console.log(`  ${applied} migration(s) applied`);
     }

@@ -101,10 +101,30 @@ export class PostgresEngine implements BrainEngine {
     // on DDL statements (DROP TRIGGER + CREATE TRIGGER acquire AccessExclusiveLock)
     await conn`SELECT pg_advisory_lock(42)`;
     try {
-      await conn.unsafe(SCHEMA_SQL);
+      // Big-jump-upgrade safety: SCHEMA_SQL is the LATEST schema and references
+      // columns added by intermediate migrations (e.g. pages.source_id from
+      // v17, links.link_source from v11). On an existing brain whose live
+      // schema lags behind the source, running SCHEMA_SQL first fails on
+      // statements like `CREATE INDEX ... ON pages(source_id)` because the
+      // column doesn't exist yet — and runMigrations never gets a chance to
+      // add it. Detect existing brains via the migrations-managed `config`
+      // table and run migrations FIRST so columns exist by the time
+      // SCHEMA_SQL re-applies the latest indexes/triggers.
+      const cfgCheck = await conn`SELECT to_regclass('public.config') AS t`;
+      const isFreshInstall = (cfgCheck[0] as { t: string | null }).t === null;
 
-      // Run any pending migrations automatically
-      const { applied } = await runMigrations(this);
+      let applied = 0;
+      if (isFreshInstall) {
+        // Fresh install: SCHEMA_SQL creates every table; runMigrations is a no-op
+        await conn.unsafe(SCHEMA_SQL);
+        applied = (await runMigrations(this)).applied;
+      } else {
+        // Existing brain: bring columns up to current via migrations FIRST,
+        // then re-apply SCHEMA_SQL safely (all referenced columns now exist)
+        applied = (await runMigrations(this)).applied;
+        await conn.unsafe(SCHEMA_SQL);
+      }
+
       if (applied > 0) {
         console.log(`  ${applied} migration(s) applied`);
       }
