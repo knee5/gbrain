@@ -360,8 +360,7 @@ export class PostgresEngine implements BrainEngine {
       SELECT f.id, t.id, ${linkType || ''}, ${context || ''}
       FROM pages f, pages t
       WHERE f.slug = ${from} AND t.slug = ${to}
-      ON CONFLICT (from_page_id, to_page_id) DO UPDATE SET
-        link_type = EXCLUDED.link_type,
+      ON CONFLICT (from_page_id, to_page_id, link_type) DO UPDATE SET
         context = EXCLUDED.context
       RETURNING id
     `;

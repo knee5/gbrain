@@ -326,8 +326,7 @@ export class PGLiteEngine implements BrainEngine {
        SELECT f.id, t.id, $3, $4
        FROM pages f, pages t
        WHERE f.slug = $1 AND t.slug = $2
-       ON CONFLICT (from_page_id, to_page_id) DO UPDATE SET
-         link_type = EXCLUDED.link_type,
+       ON CONFLICT (from_page_id, to_page_id, link_type) DO UPDATE SET
          context = EXCLUDED.context`,
       [from, to, linkType || '', context || '']
     );
